@@ -2,6 +2,19 @@ const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
 const Cast = require('../../util/cast');
 const log = require('../../util/log');
+const Video = require('../../io/video');
+const IMAGENET_CLASSES = require('./imagenet_classes')["IMAGENET_CLASSES"];
+
+//import * as tf from '@tensorflow/tfjs';
+const tf = require("@tensorflow/tfjs");
+
+/**
+ * pretrained mobilenet model file URL
+ * @type {string}
+ */
+const MOBILENET_MODEL_PATH = 'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json';
+
+const IMAGE_SIZE = 224;
 
 /**
  * Icon svg to be displayed at the left edge of each extension block, encoded as a data URI.
@@ -34,10 +47,47 @@ class Scratch3NewBlocks {
         //this.runtime.on('targetWasCreated', this._onTargetCreated);
     }
 
+    _loop() {
+      setTimeout(this._loop.bind(this), Math.max(this.runtime.currentStepTime, 100));
+
+      const time = Date.now();
+      if (this._lastUpdate == null) {
+        this._lastUpdate = time;
+      }
+      const offset = time - this._lastUpdate;
+      if (offset > 100) {
+        const frame = this.runtime.ioDevices.video.getFrame({ format: Video.FORMAT_IMAGE_DATA, dimensions: [IMAGE_SIZE, IMAGE_SIZE] });
+        if (frame) {
+          const logits = tf.tidy(() => {
+            const img = tf.fromPixels(frame).toFloat();
+            const offset = tf.scalar(127.5);
+            const normalized = img.sub(offset).div(offset);
+            const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
+            return this.model.predict(batched);
+          });
+          logits.data().then((value) => {
+            this.logits = value;
+            this.top10LabelsAndProbs = this.getTop10(this.logits);
+          });
+        }
+      }
+    }
+
     /**
      * @returns {object} metadata for this extension and its blocks.
      */
     getInfo () {
+        this.runtime.ioDevices.video.enableVideo();
+
+        /* load mobilenet model */
+        tf.loadModel(MOBILENET_MODEL_PATH).then(net => {
+          this.model = net;
+          this.model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose();
+          if (this.runtime.ioDevices) {
+            this._loop();
+          }
+        });
+
         return {
             id: 'newblocks',
             name: 'New Blocks',
@@ -45,19 +95,8 @@ class Scratch3NewBlocks {
             blockIconURI: blockIconURI,
             blocks: [
                 {
-                    opcode: 'writeLog',
-                    blockType: BlockType.COMMAND,
-                    text: 'log [TEXT]',
-                    arguments: {
-                        TEXT: {
-                            type: ArgumentType.STRING,
-                            defaultValue: "hello"
-                        }
-                    }
-                },
-                {
-                    opcode: 'getBrowser',
-                    text: 'browser',
+                    opcode: 'getLogits',
+                    text: 'logits',
                     blockType: BlockType.REPORTER
                 }
             ],
@@ -67,22 +106,25 @@ class Scratch3NewBlocks {
     }
 
     /**
-     * Write log.
-     * @param {object} args - the block arguments.
-     * @property {number} TEXT - the text.
-     */
-    writeLog (args) {
-        const text = Cast.toString(args.TEXT);
-        log.log(text);
-    }
-
-    /**
      * Get the browser.
      * @return {number} - the user agent.
      */
-    getBrowser () {
-        return navigator.userAgent;
+    getLogits () {
+        return this.top10LabelsAndProbs[0].label + " : " + this.top10LabelsAndProbs[0].prob;
     }
+
+  getTop10(logits) {
+    const valuesAndIndices = [];
+    for (i in logits) {
+      valuesAndIndices.push({ value: logits[i], index: i})
+    }
+    valuesAndIndices.sort((a, b) => { return b.value - a.value })
+    const top10LabelsAndProbs = [];
+    for (let i = 0; i < 10; i++){
+      top10LabelsAndProbs.push({ label: IMAGENET_CLASSES[valuesAndIndices[i].index], prob: valuesAndIndices[i].value });
+    }
+    return top10LabelsAndProbs;
+  }
 }
 
 module.exports = Scratch3NewBlocks;
