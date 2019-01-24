@@ -5,6 +5,13 @@ const log = require('../../util/log');
 const Video = require('../../io/video');
 const IMAGENET_CLASSES = require('./imagenet_classes')["IMAGENET_CLASSES"];
 
+const RPS_CLASSES = {
+  0: "None",
+  1: "Rock",
+  2: "Paper",
+  3: "Scissors"
+};
+
 //import * as tf from '@tensorflow/tfjs';
 const tf = require("@tensorflow/tfjs");
 
@@ -15,6 +22,8 @@ const tf = require("@tensorflow/tfjs");
 const MOBILENET_MODEL_PATH = 'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json';
 
 const IMAGE_SIZE = 224;
+
+const MY_MODEL_PATH = 'https://storage.googleapis.com/streaming-func-test2-ml/nagachika-test/rpcmodel/mymodel.json';
 
 /**
  * Icon svg to be displayed at the left edge of each extension block, encoded as a data URI.
@@ -63,11 +72,13 @@ class Scratch3NewBlocks {
             const offset = tf.scalar(127.5);
             const normalized = img.sub(offset).div(offset);
             const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
-            return this.model.predict(batched);
+            //return this.model.predict(batched);
+            embedding = this.model.predict(batched);
+            return this.output.predict(embedding);
           });
           logits.data().then((value) => {
             this.logits = value;
-            this.top10LabelsAndProbs = this.getTop10(this.logits);
+            this.top4LabelsAndProbs = this.getTop4(this.logits);
           });
         }
       }
@@ -81,22 +92,26 @@ class Scratch3NewBlocks {
 
         /* load mobilenet model */
         tf.loadModel(MOBILENET_MODEL_PATH).then(net => {
+          net = tf.model({inputs: net.inputs, outputs: net.getLayer('conv_pw_13_relu').output});
           this.model = net;
           this.model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose();
-          if (this.runtime.ioDevices) {
-            this._loop();
-          }
+          tf.loadModel(MY_MODEL_PATH).then(mynet => {
+            this.output = mynet;
+            if (this.runtime.ioDevices) {
+              this._loop();
+            }
+          });
         });
 
         return {
             id: 'newblocks',
-            name: 'New Blocks',
+            name: 'Rock-Paper-Scissors',
             menuIconURI: menuIconURI,
             blockIconURI: blockIconURI,
             blocks: [
                 {
-                    opcode: 'getLogits',
-                    text: 'logits',
+                    opcode: 'getPrediction',
+                    text: 'prediction of hand',
                     blockType: BlockType.REPORTER
                 }
             ],
@@ -106,24 +121,24 @@ class Scratch3NewBlocks {
     }
 
     /**
-     * Get the browser.
+     * Get the prediction.
      * @return {number} - the user agent.
      */
-    getLogits () {
-        return this.top10LabelsAndProbs[0].label + " : " + this.top10LabelsAndProbs[0].prob;
+    getPrediction () {
+        return this.top4LabelsAndProbs[0].label;
     }
 
-  getTop10(logits) {
+  getTop4(logits) {
     const valuesAndIndices = [];
     for (i in logits) {
       valuesAndIndices.push({ value: logits[i], index: i})
     }
     valuesAndIndices.sort((a, b) => { return b.value - a.value })
-    const top10LabelsAndProbs = [];
-    for (let i = 0; i < 10; i++){
-      top10LabelsAndProbs.push({ label: IMAGENET_CLASSES[valuesAndIndices[i].index], prob: valuesAndIndices[i].value });
+    const top4LabelsAndProbs = [];
+    for (let i = 0; i < 4; i++){
+      top4LabelsAndProbs.push({ label: RPS_CLASSES[valuesAndIndices[i].index], prob: valuesAndIndices[i].value });
     }
-    return top10LabelsAndProbs;
+    return top4LabelsAndProbs;
   }
 }
 
