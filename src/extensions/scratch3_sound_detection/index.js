@@ -4,25 +4,8 @@ const Cast = require('../../util/cast');
 const log = require('../../util/log');
 const Video = require('../../io/video');
 
-const RPS_CLASSES = {
-  0: "Rock",
-  1: "Paper",
-  2: "Scissors",
-  3: "None",
-};
-
 //import * as tf from '@tensorflow/tfjs';
 const tf = require("@tensorflow/tfjs");
-
-/**
- * pretrained mobilenet model file URL
- * @type {string}
- */
-const MOBILENET_MODEL_PATH = 'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json';
-
-const IMAGE_SIZE = 224;
-
-const MY_MODEL_PATH = 'https://storage.googleapis.com/ai-techpark-assets/rock-paper-scissors-collector/models/trained_model.json';
 
 /**
  * Icon svg to be displayed at the left edge of each extension block, encoded as a data URI.
@@ -43,7 +26,7 @@ const menuIconURI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAA
  * @param {Runtime} runtime - the runtime instantiating this block package.
  * @constructor
  */
-class Scratch3NewBlocks {
+class Scratch3SoundDetectionBlocks {
     constructor (runtime) {
         /**
          * The runtime instantiating this block package.
@@ -55,61 +38,19 @@ class Scratch3NewBlocks {
         //this.runtime.on('targetWasCreated', this._onTargetCreated);
     }
 
-    _loop() {
-      setTimeout(this._loop.bind(this), Math.max(this.runtime.currentStepTime, 100));
-
-      const time = Date.now();
-      if (this._lastUpdate == null) {
-        this._lastUpdate = time;
-      }
-      const offset = time - this._lastUpdate;
-      if (offset > 100) {
-        const frame = this.runtime.ioDevices.video.getFrame({ format: Video.FORMAT_IMAGE_DATA, dimensions: [IMAGE_SIZE, IMAGE_SIZE] });
-        if (frame) {
-          const logits = tf.tidy(() => {
-            const img = tf.fromPixels(frame).toFloat();
-            const offset = tf.scalar(127.5);
-            const normalized = img.sub(offset).div(offset);
-            const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
-            embedding = this.model.predict(batched);
-            return this.output.predict(embedding);
-          });
-          logits.data().then((value) => {
-            this.logits = value;
-            this.top4LabelsAndProbs = this.getTop4(this.logits);
-          });
-        }
-      }
-    }
-
     /**
      * @returns {object} metadata for this extension and its blocks.
      */
     getInfo () {
-        this.runtime.ioDevices.video.enableVideo();
-
-        /* load mobilenet model */
-        tf.loadModel(MOBILENET_MODEL_PATH).then(net => {
-          net = tf.model({inputs: net.inputs, outputs: net.getLayer('conv_pw_13_relu').output});
-          this.model = net;
-          this.model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose();
-          tf.loadModel(MY_MODEL_PATH).then(mynet => {
-            this.output = mynet;
-            if (this.runtime.ioDevices) {
-              this._loop();
-            }
-          });
-        });
-
         return {
-            id: 'newblocks',
-            name: 'Rock-Paper-Scissors',
+            id: 'soundDetection',
+            name: 'Sound Detection',
             menuIconURI: menuIconURI,
             blockIconURI: blockIconURI,
             blocks: [
                 {
                     opcode: 'getPrediction',
-                    text: 'prediction of hand',
+                    text: 'prediction of sound',
                     blockType: BlockType.REPORTER
                 }
             ],
@@ -120,24 +61,11 @@ class Scratch3NewBlocks {
 
     /**
      * Get the prediction.
-     * @return {number} - the user agent.
+     * @return {string} - the predicted label
      */
     getPrediction () {
-        return this.top4LabelsAndProbs[0].label;
+        return "Hello, World!";
     }
-
-  getTop4(logits) {
-    const valuesAndIndices = [];
-    for (i in logits) {
-      valuesAndIndices.push({ value: logits[i], index: i})
-    }
-    valuesAndIndices.sort((a, b) => { return b.value - a.value })
-    const top4LabelsAndProbs = [];
-    for (let i = 0; i < 4; i++){
-      top4LabelsAndProbs.push({ label: RPS_CLASSES[valuesAndIndices[i].index], prob: valuesAndIndices[i].value });
-    }
-    return top4LabelsAndProbs;
-  }
 }
 
-module.exports = Scratch3NewBlocks;
+module.exports = Scratch3SoundDetectionBlocks;
