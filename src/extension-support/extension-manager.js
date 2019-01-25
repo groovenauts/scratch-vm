@@ -33,7 +33,7 @@ const builtinExtensions = {
     speech2text: Scratch3Speech2TextBlocks,
     ev3: Scratch3Ev3Blocks,
     makeymakey: Scratch3MakeyMakeyBlocks,
-    ai_techpark: Scratch3AiTechparkBlocks,
+    rock_paper_scissors: Scratch3AiTechparkBlocks,
     // gdxfor: Scratch3GdxForBlocks
 };
 
