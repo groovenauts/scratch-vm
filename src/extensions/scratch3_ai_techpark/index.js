@@ -3,7 +3,6 @@ const BlockType = require('../../extension-support/block-type');
 const Cast = require('../../util/cast');
 const log = require('../../util/log');
 const Video = require('../../io/video');
-const IMAGENET_CLASSES = require('./imagenet_classes')["IMAGENET_CLASSES"];
 
 const RPS_CLASSES = {
   0: "None",
