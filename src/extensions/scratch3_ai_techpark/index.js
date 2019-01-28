@@ -5,10 +5,10 @@ const log = require('../../util/log');
 const Video = require('../../io/video');
 
 const RPS_CLASSES = {
-  0: "None",
-  1: "Rock",
-  2: "Paper",
-  3: "Scissors"
+  0: "Rock",
+  1: "Paper",
+  2: "Scissors",
+  3: "None",
 };
 
 //import * as tf from '@tensorflow/tfjs';
@@ -22,7 +22,7 @@ const MOBILENET_MODEL_PATH = 'https://storage.googleapis.com/tfjs-models/tfjs/mo
 
 const IMAGE_SIZE = 224;
 
-const MY_MODEL_PATH = 'https://storage.googleapis.com/streaming-func-test2-ml/nagachika-test/rpcmodel/mymodel.json';
+const MY_MODEL_PATH = 'https://storage.googleapis.com/ai-techpark-assets/rock-paper-scissors-collector/models/trained_model.json';
 
 /**
  * Icon svg to be displayed at the left edge of each extension block, encoded as a data URI.
@@ -71,7 +71,6 @@ class Scratch3NewBlocks {
             const offset = tf.scalar(127.5);
             const normalized = img.sub(offset).div(offset);
             const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
-            //return this.model.predict(batched);
             embedding = this.model.predict(batched);
             return this.output.predict(embedding);
           });
