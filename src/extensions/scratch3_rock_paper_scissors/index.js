@@ -64,12 +64,13 @@ class Scratch3RockPaperScissorsBlocks {
       }
       const offset = time - this._lastUpdate;
       if (offset > 100) {
-        const frame = this.runtime.ioDevices.video.getFrame({ format: Video.FORMAT_IMAGE_DATA, dimensions: [IMAGE_SIZE, IMAGE_SIZE] });
+        const frame = this.runtime.ioDevices.video.getFrame({ format: Video.FORMAT_IMAGE_DATA, dimensions: [480, 360] });
         if (frame) {
           const logits = tf.tidy(() => {
-            const img = tf.fromPixels(frame).toFloat();
+            const img = tf.fromPixels(frame).toFloat().reshape([1, 360, 480, 3]);
+            const clipped = tf.image.cropAndResize(img, tf.tensor2d([[0.0, 0.125, 1.0, 0.775]]), [0], [IMAGE_SIZE, IMAGE_SIZE]);
             const offset = tf.scalar(127.5);
-            const normalized = img.sub(offset).div(offset);
+            const normalized = clipped.sub(offset).div(offset);
             const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
             embedding = this.model.predict(batched);
             return this.output.predict(embedding);
