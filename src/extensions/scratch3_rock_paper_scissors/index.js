@@ -53,6 +53,12 @@ class Scratch3RockPaperScissorsBlocks {
 
         //this._onTargetCreated = this._onTargetCreated.bind(this);
         //this.runtime.on('targetWasCreated', this._onTargetCreated);
+
+        /**
+         * The transparency of video display.
+         * @type {number}
+         */
+        this.transparency = 50;
     }
 
     _loop() {
@@ -88,6 +94,7 @@ class Scratch3RockPaperScissorsBlocks {
      */
     getInfo () {
         this.runtime.ioDevices.video.enableVideo();
+        this.runtime.ioDevices.video.setPreviewGhost(this.transparency);
 
         /* load mobilenet model */
         tf.loadModel(MOBILENET_MODEL_PATH).then(net => {
@@ -112,6 +119,16 @@ class Scratch3RockPaperScissorsBlocks {
                     opcode: 'getPrediction',
                     text: 'prediction of hand',
                     blockType: BlockType.REPORTER
+                },
+                {
+                    opcode: 'setVideoTransparency',
+                    text: 'set video transparency to [TRANSPARENCY]',
+                    arguments: {
+                        TRANSPARENCY: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 50
+                        }
+                    }
                 }
             ],
             menus: {
@@ -127,18 +144,24 @@ class Scratch3RockPaperScissorsBlocks {
         return this.top4LabelsAndProbs[0].label;
     }
 
-  getTop4(logits) {
-    const valuesAndIndices = [];
-    for (i in logits) {
-      valuesAndIndices.push({ value: logits[i], index: i})
+    setVideoTransparency (args) {
+        const transparency = Cast.toNumber(args.TRANSPARENCY);
+        this.transparency = transparency;
+        this.runtime.ioDevices.video.setPreviewGhost(transparency);
     }
-    valuesAndIndices.sort((a, b) => { return b.value - a.value })
-    const top4LabelsAndProbs = [];
-    for (let i = 0; i < 4; i++){
-      top4LabelsAndProbs.push({ label: RPS_CLASSES[valuesAndIndices[i].index], prob: valuesAndIndices[i].value });
+
+    getTop4(logits) {
+        const valuesAndIndices = [];
+        for (i in logits) {
+            valuesAndIndices.push({ value: logits[i], index: i})
+        }
+        valuesAndIndices.sort((a, b) => { return b.value - a.value })
+        const top4LabelsAndProbs = [];
+        for (let i = 0; i < 4; i++){
+            top4LabelsAndProbs.push({ label: RPS_CLASSES[valuesAndIndices[i].index], prob: valuesAndIndices[i].value });
+        }
+        return top4LabelsAndProbs;
     }
-    return top4LabelsAndProbs;
-  }
 }
 
 module.exports = Scratch3RockPaperScissorsBlocks;
