@@ -18,6 +18,7 @@ const Scratch3Speech2TextBlocks = require('../extensions/scratch3_speech2text');
 const Scratch3Ev3Blocks = require('../extensions/scratch3_ev3');
 const Scratch3MakeyMakeyBlocks = require('../extensions/scratch3_makeymakey');
 const Scratch3RockPaperScissorsBlocks = require('../extensions/scratch3_rock_paper_scissors');
+const Scratch3ImageDetectionBlocks = require('../extensions/scratch3_image_detection');
 const Scratch3SoundDetectionBlocks = require('../extensions/scratch3_sound_detection');
 // todo: only load this extension once we have a compatible way to load its
 // Vernier module dependency.
@@ -25,6 +26,7 @@ const Scratch3SoundDetectionBlocks = require('../extensions/scratch3_sound_detec
 
 const builtinExtensions = {
     rockPaperScissors: Scratch3RockPaperScissorsBlocks,
+    imageDetection: Scratch3ImageDetectionBlocks,
     soundDetection: Scratch3SoundDetectionBlocks,
     pen: Scratch3PenBlocks,
     wedo2: Scratch3WeDo2Blocks,
