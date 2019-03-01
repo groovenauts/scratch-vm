@@ -60,55 +60,65 @@ class Scratch3RockPaperScissorsBlocks {
          * @type {number}
          */
         this.transparency = 50;
+
+        /**
+         * A flag to determine if this extension has been installed in a project.
+         * It is set to false the first time getInfo is run.
+         * @type {boolean}
+         */
+        this.firstInstall = true;
     }
 
     _loop() {
-      setTimeout(this._loop.bind(this), Math.max(this.runtime.currentStepTime, 100));
+        setTimeout(this._loop.bind(this), Math.max(this.runtime.currentStepTime, 100));
 
-      const time = Date.now();
-      if (this._lastUpdate == null) {
-        this._lastUpdate = time;
-      }
-      const offset = time - this._lastUpdate;
-      if (offset > 100) {
-        const frame = this.runtime.ioDevices.video.getFrame({ format: Video.FORMAT_IMAGE_DATA, dimensions: [480, 360] });
-        if (frame) {
-          const logits = tf.tidy(() => {
-            const img = tf.fromPixels(frame).toFloat().reshape([1, 360, 480, 3]);
-            const clipped = tf.image.cropAndResize(img, tf.tensor2d([[0.0, 0.125, 1.0, 0.775]]), [0], [IMAGE_SIZE, IMAGE_SIZE]);
-            const offset = tf.scalar(127.5);
-            const normalized = clipped.sub(offset).div(offset);
-            const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
-            embedding = this.model.predict(batched);
-            return this.output.predict(embedding);
-          });
-          logits.data().then((value) => {
-            this.logits = value;
-            this.top4LabelsAndProbs = this.getTop4(this.logits);
-          });
+        const time = Date.now();
+        if (this._lastUpdate == null) {
+            this._lastUpdate = time;
         }
-      }
+        const offset = time - this._lastUpdate;
+        if (offset > 100) {
+            const frame = this.runtime.ioDevices.video.getFrame({ format: Video.FORMAT_IMAGE_DATA, dimensions: [480, 360] });
+            if (frame) {
+                const logits = tf.tidy(() => {
+                    const img = tf.fromPixels(frame).toFloat().reshape([1, 360, 480, 3]);
+                    const clipped = tf.image.cropAndResize(img, tf.tensor2d([[0.0, 0.125, 1.0, 0.775]]), [0], [IMAGE_SIZE, IMAGE_SIZE]);
+                    const offset = tf.scalar(127.5);
+                    const normalized = clipped.sub(offset).div(offset);
+                    const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
+                    embedding = this.model.predict(batched);
+                    return this.output.predict(embedding);
+                });
+                logits.data().then((value) => {
+                    this.logits = value;
+                    this.top4LabelsAndProbs = this.getTop4(this.logits);
+                });
+            }
+        }
     }
 
     /**
      * @returns {object} metadata for this extension and its blocks.
      */
     getInfo () {
-        this.runtime.ioDevices.video.enableVideo();
-        this.runtime.ioDevices.video.setPreviewGhost(this.transparency);
+        if (this.firstInstall) {
+            this.runtime.ioDevices.video.enableVideo();
+            this.runtime.ioDevices.video.setPreviewGhost(this.transparency);
 
-        /* load mobilenet model */
-        tf.loadModel(MOBILENET_MODEL_PATH).then(net => {
-          net = tf.model({inputs: net.inputs, outputs: net.getLayer('conv_pw_13_relu').output});
-          this.model = net;
-          this.model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose();
-          tf.loadModel(MY_MODEL_PATH).then(mynet => {
-            this.output = mynet;
-            if (this.runtime.ioDevices) {
-              this._loop();
-            }
-          });
-        });
+            /* load mobilenet model */
+            tf.loadModel(MOBILENET_MODEL_PATH).then(net => {
+                net = tf.model({inputs: net.inputs, outputs: net.getLayer('conv_pw_13_relu').output});
+                this.model = net;
+                this.model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose();
+                tf.loadModel(MY_MODEL_PATH).then(mynet => {
+                    this.output = mynet;
+                    if (this.runtime.ioDevices) {
+                        this._loop();
+                    }
+                });
+            });
+            this.firstInstall = false;
+        }
 
         return {
             id: 'rockPaperScissors',
