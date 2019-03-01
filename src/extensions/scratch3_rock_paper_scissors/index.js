@@ -1,6 +1,7 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
 const Cast = require('../../util/cast');
+const formatMessage = require('format-message');
 const log = require('../../util/log');
 const Video = require('../../io/video');
 
@@ -111,18 +112,31 @@ class Scratch3RockPaperScissorsBlocks {
 
         return {
             id: 'rockPaperScissors',
-            name: 'Rock-Paper-Scissors',
+            name: formatMessage({
+                id: 'rockPaperScissors.categoryName',
+                default: 'Rock-Paper-Scissors',
+                description: 'Label for the rock-paper-scissors extension category'
+            }),
             menuIconURI: menuIconURI,
             blockIconURI: blockIconURI,
             blocks: [
                 {
                     opcode: 'getPrediction',
-                    text: 'prediction of hand',
+                    text: formatMessage({
+                        id: 'rockPaperScissors.getPrediction',
+                        default: 'prediction of hand',
+                        description: 'Label for the block get prediction.'
+                    }),
                     blockType: BlockType.REPORTER
                 },
                 {
                     opcode: 'setVideoTransparency',
                     text: 'set video transparency to [TRANSPARENCY]',
+                    text: formatMessage({
+                        id: 'rockPaperScissors.setTransparency',
+                        default: 'set video transparency to [TRANSPARENCY]',
+                        description: 'Label for the block set video transparency.'
+                    }),
                     arguments: {
                         TRANSPARENCY: {
                             type: ArgumentType.NUMBER,

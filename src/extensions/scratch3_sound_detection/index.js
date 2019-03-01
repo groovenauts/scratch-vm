@@ -1,5 +1,6 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
+const formatMessage = require('format-message');
 const log = require('../../util/log');
 
 //import * as tf from '@tensorflow/tfjs';
@@ -103,22 +104,40 @@ class Scratch3SoundDetectionBlocks {
         return {
             id: 'soundDetection',
             name: 'Sound Detection',
+            name: formatMessage({
+                id: 'soundDetection.categoryName',
+                default: 'Sound Detection',
+                description: 'Label for the sound detection extension category'
+            }),
             menuIconURI: menuIconURI,
             blockIconURI: blockIconURI,
             blocks: [
                 {
                     opcode: 'startListening',
-                    text: 'start listening',
+                    text: formatMessage({
+                        id: 'soundDetection.startListening',
+                        default: 'start listening',
+                        description: 'start listening from microphone.'
+                    }),
                     blockType: BlockType.COMMAND
                 },
                 {
                     opcode: 'stopListening',
-                    text: 'stop listening',
+                    text: formatMessage({
+                        id: 'soundDetection.stopListening',
+                        default: 'stop listening',
+                        description: 'stop listening from microphone.'
+                    }),
                     blockType: BlockType.COMMAND
                 },
                 {
                     opcode: 'whenHeard',
                     text: 'when [WORD] heard',
+                    text: formatMessage({
+                        id: 'soundDetection.whenHeard',
+                        default: 'when [WORD] heard',
+                        description: 'fire event when [WORD] is heard.'
+                    }),
                     blockType: BlockType.HAT,
                     arguments: {
                         WORD: {
