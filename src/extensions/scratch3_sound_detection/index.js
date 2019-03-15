@@ -47,10 +47,10 @@ class Scratch3SoundDetectionBlocks {
          * The recognizer
          */
         this._recognizer = speechCommands.create('BROWSER_FFT', 'directional4w');
-        this._recognizer.ensureModelLoaded();
-
+        this._recognizer.ensureModelLoaded().then(() => {
+            this._transfer = this._recognizer.createTransfer("model");
+        });
         this.runtime.on('PROJECT_STOP_ALL', this._stopListening.bind(this));
-        //this.runtime.on('PROJECT_START', this._start.bind(this));
     }
 
     /**
@@ -58,7 +58,9 @@ class Scratch3SoundDetectionBlocks {
      * @private
      */
     _stopListening () {
-        this._recognizer.stopListening();
+        if (this._transfer) {
+            this._transfer.stopListening();
+        }
         this.runtime.emitMicListening(false);
     }
 
@@ -67,25 +69,23 @@ class Scratch3SoundDetectionBlocks {
      * @private
      */
     _startListening () {
+        if (!this._transfer) {
+            return;
+        }
         this.runtime.emitMicListening(true);
-        this._threshold = 0.85;
-        this._move = this._trigger = null;
-        this._recognizer.listen(result => {
-          if (result.scores[0] > this._threshold) {
-            this._move = "down";
-            this._trigger = "down";
-          } else if (result.scores[1] > this._threshold) {
-            this._move = "left";
-            this._trigger = "left";
-          } else if (result.scores[2] > this._threshold) {
-            this._move = "right";
-            this._trigger = "right";
-          } else if (result.scores[3] > this._threshold) {
-            this._move = "up";
-            this._trigger = "up";
-          } else {
-            this._move = null;
-          }
+        this._threshold = 0.5;
+        this._label = this._trigger = null;
+        this._transfer.listen(result => {
+            let maxScore = 0;
+            let maxIndex = -1;
+            for (let i = 0; i < result.scores.length; i++) {
+                if (result.scores[i] > maxScore) {
+                    maxScore = result.scores[i];
+                    maxIndex = i;
+                }
+            }
+            this._label = maxIndex + 1;
+            this._trigger = maxIndex + 1;
         }, { includeSpectrogram: false, probabilityThreshold: this._threshold });
     }
 
@@ -112,6 +112,30 @@ class Scratch3SoundDetectionBlocks {
             menuIconURI: menuIconURI,
             blockIconURI: blockIconURI,
             blocks: [
+                {
+                    opcode: 'setModel',
+                    text: formatMessage({
+                        id: 'imageDetection.setModel',
+                        default: 'enter your model key = [KEY]',
+                        description: 'Load your custom model.'
+                    }),
+                    blockType: BlockType.COMMAND,
+                    arguments: {
+                        KEY: {
+                            type: ArgumentType.STRING,
+                            defaultValue: "🔑"
+                        }
+                    }
+                },
+                {
+                    opcode: 'resetModel',
+                    text: formatMessage({
+                        id: 'imageDetection.resetModel',
+                        default: 'reset your model',
+                        description: 'clear your custom model.'
+                    }),
+                    blockType: BlockType.COMMAND
+                },
                 {
                     opcode: 'startListening',
                     text: formatMessage({
@@ -141,33 +165,43 @@ class Scratch3SoundDetectionBlocks {
                     blockType: BlockType.HAT,
                     arguments: {
                         WORD: {
-                            type: ArgumentType.STRING,
-                            menu: "directions",
-                            defaultValue: "up"
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 1
                         }
                     }
                 },
                 {
-                    opcode: 'getWord',
-                    text: 'word',
+                    opcode: 'getLabel',
+                    text: 'sound',
                     blockType: BlockType.REPORTER
                 }
             ],
             menus: {
-              directions: [
-                { text: "up", value: "up" },
-                { text: "down", value: "down" },
-                { text: "left", value: "left" },
-                { text: "right", value: "right" },
-              ]
             }
         };
     }
 
-    /**
-     * Get the prediction.
-     * @return {string} - the predicted label
-     */
+    setModel(args) {
+        if (this._transfer && this._transfer.isListening()) {
+            this._transfer.stopListening();
+        }
+        if (this._transfer) {
+            const url = "https://storage.googleapis.com/ai-techpark-data/models/sound-detection/v1/" + args.KEY + "/model.json"
+            this._transfer.load(url).then(() => {
+                console.log("Model loaded");
+                this._transfer.words = [ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" ];
+            }).catch((e) => {
+                console.log(e);
+            });
+        }
+    }
+
+    resetModel() {
+        if (this._transfer && this._transfer.isListening()) {
+            this._transfer.stopListening();
+        };
+    }
+
     startListening () {
         this._startListening();
     }
@@ -176,14 +210,13 @@ class Scratch3SoundDetectionBlocks {
         this._stopListening();
     }
 
-    getWord() {
-        const word = this._move;
-        return word;
+    getLabel() {
+        return this._label;
     }
 
     whenHeard(args) {
-        const dir = args.WORD;
-        if (this._trigger == dir) {
+        const label = args.WORD;
+        if (this._trigger == label) {
           this._trigger = null;
           return true;
         } else {
