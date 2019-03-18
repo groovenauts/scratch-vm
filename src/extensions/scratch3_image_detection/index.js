@@ -82,7 +82,8 @@ class Scratch3ImageDetectionBlocks {
     }
 
     _loop() {
-        if (this.headNet == null) {
+        if (this.headNet == null || this.globalVideoState == "off") {
+            this.topLabelsAndProbs = null;
             return;
         }
 
@@ -126,6 +127,7 @@ class Scratch3ImageDetectionBlocks {
      */
     getInfo () {
         if (this.firstInstall) {
+            this.globalVideoState = "on";
             this.runtime.ioDevices.video.enableVideo();
             this.runtime.ioDevices.video.setPreviewGhost(this.transparency);
 
@@ -175,6 +177,21 @@ class Scratch3ImageDetectionBlocks {
                     blockType: BlockType.COMMAND
                 },
                 {
+                    opcode: 'videoToggle',
+                    text: formatMessage({
+                        id: 'videoSensing.videoToggle',
+                        default: 'turn video [VIDEO_STATE]',
+                        description: 'Controls display of the video preview layer'
+                    }),
+                    arguments: {
+                        VIDEO_STATE: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'VIDEO_STATE',
+                            defaultValue: "on"
+                        }
+                    }
+                },
+                {
                     opcode: 'getPrediction',
                     text: formatMessage({
                         id: 'imageDetection.getPrediction',
@@ -200,6 +217,10 @@ class Scratch3ImageDetectionBlocks {
                 }
             ],
             menus: {
+              VIDEO_STATE: [
+                { text: "on", value: "on" },
+                { text: "off", value: "off" }
+              ]
             }
         };
     }
@@ -216,6 +237,26 @@ class Scratch3ImageDetectionBlocks {
 
     resetModel() {
         this.headNet = null;
+    }
+
+    /**
+     * A scratch command block handle that configures the video state from
+     * passed arguments.
+     * @param {object} args - the block arguments
+     * @param {VideoState} args.VIDEO_STATE - the video state to set the device to
+     */
+    videoToggle (args) {
+        const state = args.VIDEO_STATE;
+        const previous_state = this.globalVideoState;
+        this.globalVideoState = state;
+        if (state === "off") {
+            this.runtime.ioDevices.video.disableVideo();
+        } else {
+            this.runtime.ioDevices.video.enableVideo();
+            if (previous_state == "off" && this.runtime.ioDevices) {
+              this._loop();
+            }
+        }
     }
 
     /**
