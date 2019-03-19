@@ -79,6 +79,21 @@ class Scratch3ImageDetectionBlocks {
          * @type {boolean}
          */
         this.firstInstall = true;
+
+        /**
+         * Detected images with it's score, sorted by score in descending orger.
+         * @type {Object}
+         */
+        this.topLabelsAndProbs = null;
+
+        /**
+         * The detected image label (top scored) information.
+         *   label: The label (index) of the latest detected image.
+         *   timestamp: The timestamp when the latest detected label detected first.
+         *   triggered: The flag indicate which the label was triggerred `detectAtLeast` command.
+         * @type {Object}
+         */
+        this.detected = null;
     }
 
     _loop() {
@@ -107,8 +122,18 @@ class Scratch3ImageDetectionBlocks {
                     return this.headNet.predict(embedding);
                 });
                 logits.data().then((value) => {
-                    this.logits = value;
-                    this.topLabelsAndProbs = this.getTopk(this.logits);
+                    this._lastUpdate = time;
+                    this.topLabelsAndProbs = this.getTopk(value);
+                    logits.dispose();
+                    const previousLabel = this.detected ? this.detected.label : null;
+                    const latestLabel = this.topLabelsAndProbs[0].index + 1;
+                    if (previousLabel !== latestLabel) {
+                        this.detected = {
+                            label: latestLabel,
+                            timestamp: time,
+                            triggered: false
+                        };
+                    }
                 });
             }
         }
@@ -195,10 +220,30 @@ class Scratch3ImageDetectionBlocks {
                     opcode: 'getPrediction',
                     text: formatMessage({
                         id: 'imageDetection.getPrediction',
-                        default: 'prediction of hand',
+                        default: 'prediction of image',
                         description: 'Label for the block get prediction.'
                     }),
                     blockType: BlockType.REPORTER
+                },
+                {
+                    opcode: 'detectAtLeast',
+                    text: formatMessage({
+                        id: 'imageDetection.detectAtLeast',
+                        default: 'detect [LABEL] at least [SECONDS] seconds',
+                        description: 'Label for the block get if the arbitrary image label was detected long enought.'
+                    }),
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        LABEL: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'LABELS',
+                            defaultValue: "1"
+                        },
+                        SECONDS: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: "1.0"
+                        }
+                    }
                 },
                 {
                     opcode: 'setVideoTransparency',
@@ -220,6 +265,18 @@ class Scratch3ImageDetectionBlocks {
               VIDEO_STATE: [
                 { text: "on", value: "on" },
                 { text: "off", value: "off" }
+              ],
+              LABELS: [
+                { text: "1", value: 1 },
+                { text: "2", value: 2 },
+                { text: "3", value: 3 },
+                { text: "4", value: 4 },
+                { text: "5", value: 5 },
+                { text: "6", value: 6 },
+                { text: "7", value: 7 },
+                { text: "8", value: 8 },
+                { text: "9", value: 9 },
+                { text: "10", value: 10 }
               ]
             }
         };
@@ -269,6 +326,22 @@ class Scratch3ImageDetectionBlocks {
         } else {
           return 0;
         }
+    }
+
+    /**
+     * Get if the LABEL was continue detected for SECONDS
+     */
+    detectAtLeast (args) {
+        const label = args.LABEL;
+        const seconds = args.SECONDS;
+        const now = Date.now();
+        if ( this.detected && this.detected.label == label &&
+             now - this.detected.timestamp > seconds * 1000 ) {
+            const trigger = !this.detected.triggered;
+            this.detected.triggered = true;
+            return trigger;
+        }
+        return false;
     }
 
     setVideoTransparency (args) {
