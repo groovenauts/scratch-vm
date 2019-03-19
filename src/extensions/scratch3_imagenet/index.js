@@ -60,13 +60,14 @@ class Scratch3ImagenetBlocks {
             const frame = this.runtime.ioDevices.video.getFrame({ format: Video.FORMAT_IMAGE_DATA, dimensions: [IMAGE_SIZE, IMAGE_SIZE] });
             if (frame) {
                 const logits = tf.tidy(() => {
-                    const img = tf.fromPixels(frame).toFloat();
+                    const img = tf.browser.fromPixels(frame).toFloat();
                     const offset = tf.scalar(127.5);
                     const normalized = img.sub(offset).div(offset);
                     const batched = normalized.reshape([1, IMAGE_SIZE, IMAGE_SIZE, 3]);
                     return this.model.predict(batched);
                 });
                 logits.data().then((value) => {
+                    logits.dispose();
                     this.logits = value;
                     this.top10LabelsAndProbs = this.getTop10(this.logits);
                 });
@@ -83,7 +84,7 @@ class Scratch3ImagenetBlocks {
         /* load mobilenet model */
         if (this.firstFlag) {
             this.firstFlag = true;
-            tf.loadModel(MOBILENET_MODEL_PATH).then(net => {
+            tf.loadLayersModel(MOBILENET_MODEL_PATH).then(net => {
                 this.model = net;
                 tf.tidy(() => { this.model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose(); });
                 if (this.runtime.ioDevices) {

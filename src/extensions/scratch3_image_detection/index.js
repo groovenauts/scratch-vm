@@ -113,7 +113,7 @@ class Scratch3ImageDetectionBlocks {
             const frame = this.runtime.ioDevices.video.getFrame({ format: Video.FORMAT_IMAGE_DATA, dimensions: [480, 360] });
             if (frame) {
                 const logits = tf.tidy(() => {
-                    const img = tf.fromPixels(frame).toFloat().reshape([1, 360, 480, 3]);
+                    const img = tf.browser.fromPixels(frame).toFloat().reshape([1, 360, 480, 3]);
                     const clipped = tf.image.cropAndResize(img, tf.tensor2d([[0.0, 0.125, 1.0, 0.875]]), [0], [IMAGE_SIZE, IMAGE_SIZE]);
                     const offset = tf.scalar(127.5);
                     const normalized = clipped.sub(offset).div(offset);
@@ -157,18 +157,17 @@ class Scratch3ImageDetectionBlocks {
             this.runtime.ioDevices.video.setPreviewGhost(this.transparency);
 
             /* load mobilenet model */
-            tf.loadModel(MOBILENET_MODEL_PATH).then(net => {
+            tf.loadLayersModel(MOBILENET_MODEL_PATH).then(net => {
                 net = tf.model({inputs: net.inputs, outputs: net.getLayer('conv_pw_13_relu').output});
                 this.mobilenet = net;
                 /* warm up */
-                this.mobilenet.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose();
+                tf.tidy(() => this.mobilenet.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose());
             });
             this.firstInstall = false;
         }
 
         return {
             id: 'imageDetection',
-            name: 'Image Detection',
             name: formatMessage({
                 id: 'imageDetection.categoryName',
                 default: 'Image Detection',
@@ -284,7 +283,10 @@ class Scratch3ImageDetectionBlocks {
 
     setModel(args) {
         const url = "https://storage.googleapis.com/ai-techpark-data/models/image-detection/v1/" + args.KEY + "/model.json"
-        tf.loadModel(url).then(net => {
+        tf.loadLayersModel(url).then(net => {
+            if (this.headNet) {
+                this.headNet.dispose();
+            }
             this.headNet = net;
             if (this.runtime.ioDevices) {
                 this._loop();
@@ -293,6 +295,9 @@ class Scratch3ImageDetectionBlocks {
     }
 
     resetModel() {
+        if (this.headNet) {
+            this.headNet.dispose();
+        }
         this.headNet = null;
     }
 

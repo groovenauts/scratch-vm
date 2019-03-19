@@ -49,8 +49,8 @@
     "socket.io-client": "2.0.4",
     "text-encoding": "0.6.4",
     "worker-loader": "^1.1.1",
-    "@tensorflow/tfjs": "^0.14.2",
-    "@tensorflow-models/speech-commands": "^0.2.3",
+    "@tensorflow/tfjs": "^1.0.0",
+    "@tensorflow-models/speech-commands": "^0.3.0",
     "fs": "*"
   },
   "devDependencies": {

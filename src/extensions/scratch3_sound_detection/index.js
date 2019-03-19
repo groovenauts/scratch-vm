@@ -103,7 +103,6 @@ class Scratch3SoundDetectionBlocks {
     getInfo () {
         return {
             id: 'soundDetection',
-            name: 'Sound Detection',
             name: formatMessage({
                 id: 'soundDetection.categoryName',
                 default: 'Sound Detection',

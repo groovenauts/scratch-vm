@@ -81,7 +81,7 @@ class Scratch3RockPaperScissorsBlocks {
             const frame = this.runtime.ioDevices.video.getFrame({ format: Video.FORMAT_IMAGE_DATA, dimensions: [480, 360] });
             if (frame) {
                 const logits = tf.tidy(() => {
-                    const img = tf.fromPixels(frame).toFloat().reshape([1, 360, 480, 3]);
+                    const img = tf.browser.fromPixels(frame).toFloat().reshape([1, 360, 480, 3]);
                     const clipped = tf.image.cropAndResize(img, tf.tensor2d([[0.0, 0.125, 1.0, 0.775]]), [0], [IMAGE_SIZE, IMAGE_SIZE]);
                     const offset = tf.scalar(127.5);
                     const normalized = clipped.sub(offset).div(offset);
@@ -90,6 +90,7 @@ class Scratch3RockPaperScissorsBlocks {
                     return this.output.predict(embedding);
                 });
                 logits.data().then((value) => {
+                    logits.dispose();
                     this.logits = value;
                     this.top4LabelsAndProbs = this.getTop4(this.logits);
                 });
@@ -106,11 +107,11 @@ class Scratch3RockPaperScissorsBlocks {
             this.runtime.ioDevices.video.setPreviewGhost(this.transparency);
 
             /* load mobilenet model */
-            tf.loadModel(MOBILENET_MODEL_PATH).then(net => {
+            tf.loadLayersModel(MOBILENET_MODEL_PATH).then(net => {
                 net = tf.model({inputs: net.inputs, outputs: net.getLayer('conv_pw_13_relu').output});
                 this.model = net;
                 this.model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose();
-                tf.loadModel(MY_MODEL_PATH).then(mynet => {
+                tf.loadLayersModel(MY_MODEL_PATH).then(mynet => {
                     this.output = mynet;
                     if (this.runtime.ioDevices) {
                         this._loop();
