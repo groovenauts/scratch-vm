@@ -1,6 +1,7 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
 const Cast = require('../../util/cast');
+const formatMessage = require('format-message');
 const log = require('../../util/log');
 const Video = require('../../io/video');
 const IMAGENET_CLASSES = require('./imagenet_classes')["IMAGENET_CLASSES"];
@@ -43,12 +44,22 @@ class Scratch3ImagenetBlocks {
          */
         this.runtime = runtime;
 
+        /**
+         * The transparency of video display.
+         * @type {number}
+         */
+        this.transparency = 50;
+
         //this._onTargetCreated = this._onTargetCreated.bind(this);
         //this.runtime.on('targetWasCreated', this._onTargetCreated);
         this.firstFlag = true;
     }
 
     _loop() {
+        if (this.model == null || this.globalVideoState == "off") {
+            this.top10LabelsAndProbs = null;
+            return;
+        }
         setTimeout(this._loop.bind(this), Math.max(this.runtime.currentStepTime, 100));
 
         const time = Date.now();
@@ -68,6 +79,7 @@ class Scratch3ImagenetBlocks {
                 });
                 logits.data().then((value) => {
                     logits.dispose();
+                    this._lastUpdate = time;
                     this.logits = value;
                     this.top10LabelsAndProbs = this.getTop10(this.logits);
                 });
@@ -79,11 +91,12 @@ class Scratch3ImagenetBlocks {
      * @returns {object} metadata for this extension and its blocks.
      */
     getInfo () {
-        this.runtime.ioDevices.video.enableVideo();
 
         /* load mobilenet model */
         if (this.firstFlag) {
             this.firstFlag = true;
+            this.globalVideoState = "on";
+            this.runtime.ioDevices.video.enableVideo();
             tf.loadLayersModel(MOBILENET_MODEL_PATH).then(net => {
                 this.model = net;
                 tf.tidy(() => { this.model.predict(tf.zeros([1, IMAGE_SIZE, IMAGE_SIZE, 3])).dispose(); });
@@ -100,14 +113,74 @@ class Scratch3ImagenetBlocks {
             blockIconURI: blockIconURI,
             blocks: [
                 {
+                    opcode: 'videoToggle',
+                    text: formatMessage({
+                        id: 'videoSensing.videoToggle',
+                        default: 'turn video [VIDEO_STATE]',
+                        description: 'Controls display of the video preview layer'
+                    }),
+                    arguments: {
+                        VIDEO_STATE: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'VIDEO_STATE',
+                            defaultValue: "on"
+                        }
+                    }
+                },
+                {
+                    opcode: 'setVideoTransparency',
+                    text: 'set video transparency to [TRANSPARENCY]',
+                    text: formatMessage({
+                        id: 'imageDetection.setTransparency',
+                        default: 'set video transparency to [TRANSPARENCY]',
+                        description: 'Label for the block set video transparency.'
+                    }),
+                    arguments: {
+                        TRANSPARENCY: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 50
+                        }
+                    }
+                },
+                {
                     opcode: 'predict',
                     text: 'predict',
                     blockType: BlockType.REPORTER
                 }
             ],
             menus: {
+              VIDEO_STATE: [
+                { text: "on", value: "on" },
+                { text: "off", value: "off" }
+              ],
             }
         };
+    }
+
+    /**
+     * A scratch command block handle that configures the video state from
+     * passed arguments.
+     * @param {object} args - the block arguments
+     * @param {VideoState} args.VIDEO_STATE - the video state to set the device to
+     */
+    videoToggle (args) {
+        const state = args.VIDEO_STATE;
+        const previous_state = this.globalVideoState;
+        this.globalVideoState = state;
+        if (state === "off") {
+            this.runtime.ioDevices.video.disableVideo();
+        } else {
+            this.runtime.ioDevices.video.enableVideo();
+            if (previous_state == "off" && this.runtime.ioDevices) {
+              this._loop();
+            }
+        }
+    }
+
+    setVideoTransparency (args) {
+        const transparency = Cast.toNumber(args.TRANSPARENCY);
+        this.transparency = transparency;
+        this.runtime.ioDevices.video.setPreviewGhost(transparency);
     }
 
     /**
