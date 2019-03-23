@@ -284,10 +284,18 @@ class Scratch3ImageDetectionBlocks {
     setModel(args) {
         const url = "https://storage.googleapis.com/ai-techpark-data/models/image-detection/v1/" + args.KEY + "/model.json"
         tf.loadLayersModel(url).then(net => {
+            let oldNet = null;
             if (this.headNet) {
-                this.headNet.dispose();
+                oldNet = this.headNet;
             }
             this.headNet = net;
+            if (oldNet) {
+                try {
+                    oldNet.dispose();
+                } catch (err) {
+                    console.log(err);
+                }
+            }
             if (this.runtime.ioDevices) {
                 this._loop();
             }
@@ -295,10 +303,15 @@ class Scratch3ImageDetectionBlocks {
     }
 
     resetModel() {
-        if (this.headNet) {
-            this.headNet.dispose();
-        }
+        let oldNet = this.headNet;
         this.headNet = null;
+        if (oldNet) {
+            try {
+                oldNet.dispose();
+            } catch (err) {
+                console.log(err);
+            }
+        }
     }
 
     /**
