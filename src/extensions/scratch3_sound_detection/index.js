@@ -46,7 +46,7 @@ class Scratch3SoundDetectionBlocks {
         /**
          * The recognizer
          */
-        this._recognizer = speechCommands.create('BROWSER_FFT', 'directional4w');
+        this._recognizer = speechCommands.create('BROWSER_FFT');
         this._recognizer.ensureModelLoaded().then(() => {
             this._transfer = this._recognizer.createTransfer("model");
         });
