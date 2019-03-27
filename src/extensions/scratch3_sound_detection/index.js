@@ -185,7 +185,7 @@ class Scratch3SoundDetectionBlocks {
             this._transfer.stopListening();
         }
         if (this._transfer) {
-            const url = "https://storage.googleapis.com/ai-techpark-data/models/sound-detection/v1/" + args.KEY + "/model.json"
+            const url = "https://storage.googleapis.com/ai-techpark-models-public/sound-detection/v1/" + args.KEY + "/model.json"
             this._transfer.load(url).then(() => {
                 console.log("Model loaded");
                 this._transfer.words = [ "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" ];
