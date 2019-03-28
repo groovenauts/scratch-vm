@@ -94,6 +94,13 @@ class Scratch3ImageDetectionBlocks {
          * @type {Object}
          */
         this.detected = null;
+
+        this.runtime.on('PROJECT_STOP_ALL', this._stopCapturing.bind(this));
+    }
+
+    _stopCapturing() {
+        this.globalVideoState = "off";
+        this.runtime.ioDevices.video.disableVideo();
     }
 
     _loop() {
@@ -152,9 +159,7 @@ class Scratch3ImageDetectionBlocks {
      */
     getInfo () {
         if (this.firstInstall) {
-            this.globalVideoState = "on";
-            this.runtime.ioDevices.video.enableVideo();
-            this.runtime.ioDevices.video.setPreviewGhost(this.transparency);
+            this.globalVideoState = "off";
 
             /* load mobilenet model */
             tf.loadLayersModel(MOBILENET_MODEL_PATH).then(net => {
@@ -297,7 +302,13 @@ class Scratch3ImageDetectionBlocks {
                 }
             }
             if (this.runtime.ioDevices) {
-                this._loop();
+                const previous_state = this.globalVideoState;
+                this.globalVideoState = "on"
+                if (previous_state == "off" && this.runtime.ioDevices) {
+                    this.runtime.ioDevices.video.enableVideo();
+                    this.runtime.ioDevices.video.setPreviewGhost(this.transparency);
+                    this._loop();
+                }
             }
         }).catch(error => console.log(error));
     }
@@ -327,9 +338,10 @@ class Scratch3ImageDetectionBlocks {
         if (state === "off") {
             this.runtime.ioDevices.video.disableVideo();
         } else {
-            this.runtime.ioDevices.video.enableVideo();
             if (previous_state == "off" && this.runtime.ioDevices) {
-              this._loop();
+                this.runtime.ioDevices.video.enableVideo();
+                this.runtime.ioDevices.video.setPreviewGhost(this.transparency);
+                this._loop();
             }
         }
     }
