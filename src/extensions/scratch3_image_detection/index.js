@@ -16,7 +16,7 @@ const MOBILENET_MODEL_PATH = 'https://storage.googleapis.com/tfjs-models/tfjs/mo
 
 const IMAGE_SIZE = 224;
 
-const MAX_LABELS = 4;
+const MAX_LABELS = 10;
 
 /**
  * Icon svg to be displayed at the left edge of each extension block, encoded as a data URI.

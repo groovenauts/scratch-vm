@@ -67,11 +67,28 @@ class Scratch3RockPaperScissorsBlocks {
          * @type {boolean}
          */
         this.firstInstall = true;
+
+        /**
+         * The detected image label (top scored) information.
+         *   label: The label (index) of the latest detected image.
+         *   timestamp: The timestamp when the latest detected label detected first.
+         *   triggered: The flag indicate which the label was triggerred `detectAtLeast` command.
+         * @type {Object}
+         */
+        this.detected = null;
+
+        this.runtime.on('PROJECT_STOP_ALL', this._stopCapturing.bind(this));
+    }
+
+    _stopCapturing() {
+        this.globalVideoState = "off";
+        this.runtime.ioDevices.video.disableVideo();
     }
 
     _loop() {
         if (this.output == null || this.globalVideoState == "off") {
           this.top4LabelsAndProbs = null;
+          this.detected = null;
           return;
         }
         setTimeout(this._loop.bind(this), Math.max(this.runtime.currentStepTime, 100));
@@ -95,8 +112,17 @@ class Scratch3RockPaperScissorsBlocks {
                 });
                 logits.data().then((value) => {
                     logits.dispose();
+                    const previousLabel = this.detected ? this.detected.label : null;
                     this.logits = value;
                     this.top4LabelsAndProbs = this.getTop4(this.logits);
+                    const latestLabel = this.top4LabelsAndProbs[0].label;
+                    if (previousLabel !== latestLabel) {
+                        this.detected = {
+                            label: latestLabel,
+                            timestamp: time,
+                            triggered: false
+                        };
+                    }
                 });
             }
         }
@@ -146,6 +172,26 @@ class Scratch3RockPaperScissorsBlocks {
                     blockType: BlockType.REPORTER
                 },
                 {
+                    opcode: 'detectAtLeast',
+                    text: formatMessage({
+                        id: 'imageDetection.detectAtLeast',
+                        default: 'detect [LABEL] at least [SECONDS] seconds',
+                        description: 'Label for the block get if the arbitrary image label was detected long enought.'
+                    }),
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        LABEL: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'LABELS',
+                            defaultValue: "Rock"
+                        },
+                        SECONDS: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: "1.0"
+                        }
+                    }
+                },
+                {
                     opcode: 'videoToggle',
                     text: formatMessage({
                         id: 'videoSensing.videoToggle',
@@ -180,6 +226,12 @@ class Scratch3RockPaperScissorsBlocks {
               VIDEO_STATE: [
                 { text: "on", value: "on" },
                 { text: "off", value: "off" }
+              ],
+              LABELS: [
+                { text: formatMessage({id: "rockPaperScissors.rock", default: "Rock", description: "Label for the rock"}), value: "Rock" },
+                { text: formatMessage({id: "rockPaperScissors.paper", default: "Paper", description: "Label for the paper"}), value: "Paper" },
+                { text: formatMessage({id: "rockPaperScissors.scissors", default: "Scissors", description: "Label for the scissors"}), value: "Scissors" },
+                { text: formatMessage({id: "rockPaperScissors.none", default: "None", description: "Label for the none"}), value: "None" },
               ]
             }
         };
@@ -210,7 +262,27 @@ class Scratch3RockPaperScissorsBlocks {
      * @return {number} - the user agent.
      */
     getPrediction () {
-        return this.top4LabelsAndProbs[0].label;
+        if (this.detected) {
+            return this.detected.label;
+        } else {
+            return "";
+        }
+    }
+
+    /**
+     * Get if the LABEL was continue detected for SECONDS
+     */
+    detectAtLeast (args) {
+        const label = args.LABEL;
+        const seconds = args.SECONDS;
+        const now = Date.now();
+        if ( this.detected && this.detected.label === label &&
+             now - this.detected.timestamp > seconds * 1000 ) {
+            const trigger = !this.detected.triggered;
+            this.detected.triggered = true;
+            return trigger;
+        }
+        return false;
     }
 
     setVideoTransparency (args) {
